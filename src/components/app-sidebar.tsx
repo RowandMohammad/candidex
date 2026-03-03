@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileText, Settings, LayoutDashboard, LogOut } from 'lucide-react';
+import { FileText, Settings, LayoutDashboard, LogOut, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 
@@ -16,6 +16,7 @@ interface AppSidebarProps {
 const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/dashboard/cv', label: 'Master CV', icon: FileText },
+    { href: '/dashboard/tracker', label: 'Tracker', icon: Briefcase },
     { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -43,8 +44,8 @@ export function AppSidebar({ user }: AppSidebarProps) {
                             key={item.href}
                             href={item.href}
                             className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${isActive
-                                    ? 'bg-zinc-800 text-white'
-                                    : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-white'
+                                ? 'bg-zinc-800 text-white'
+                                : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-white'
                                 }`}
                         >
                             <item.icon className="h-4 w-4" />

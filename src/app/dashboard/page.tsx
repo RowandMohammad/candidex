@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
-import { FileText, Upload } from 'lucide-react';
+import { FileText, Upload, Briefcase } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -20,6 +20,11 @@ export default async function DashboardPage() {
         .eq('user_id', user!.id)
         .eq('is_active', true)
         .single();
+
+    const { count: jobPackCount } = await supabase
+        .from('job_packs')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user!.id);
 
     return (
         <div className="space-y-6">
@@ -68,7 +73,10 @@ export default async function DashboardPage() {
                 {/* Status Summary Card */}
                 <Card className="border-zinc-800 bg-zinc-900">
                     <CardHeader>
-                        <CardTitle className="text-white">📊 Quick Stats</CardTitle>
+                        <CardTitle className="flex items-center gap-2 text-white">
+                            <Briefcase className="h-5 w-5" />
+                            Quick Stats
+                        </CardTitle>
                         <CardDescription className="text-zinc-400">
                             Your application pipeline
                         </CardDescription>
@@ -76,7 +84,9 @@ export default async function DashboardPage() {
                     <CardContent>
                         <div className="space-y-2 text-sm text-zinc-400">
                             <p>CV Health: {masterCv?.health_score ? `${masterCv.health_score}/100` : '—'}</p>
-                            <p>Job Packs: Coming in M2</p>
+                            <Link href="/dashboard/tracker" className="flex items-center gap-1 text-violet-400 hover:text-violet-300">
+                                Job Packs: {jobPackCount ?? 0}
+                            </Link>
                         </div>
                     </CardContent>
                 </Card>
@@ -94,7 +104,11 @@ export default async function DashboardPage() {
                             <li className={masterCv ? 'text-green-400 line-through' : ''}>
                                 1. Upload your Master CV
                             </li>
-                            <li className="text-zinc-500">2. Create a Job Pack (M2)</li>
+                            <li className={jobPackCount && jobPackCount > 0 ? 'text-green-400 line-through' : ''}>
+                                <Link href="/dashboard/tracker" className="hover:text-violet-300">
+                                    2. Create a Job Pack
+                                </Link>
+                            </li>
                             <li className="text-zinc-500">3. Tailor & Apply (M3)</li>
                         </ol>
                     </CardContent>
