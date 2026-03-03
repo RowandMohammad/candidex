@@ -15,11 +15,11 @@ export const MODELS = {
     'interview_prep': anthropic('claude-sonnet-4-6-20250514'),
 
     // Cheap extraction — fast, low cost
-    'cv_extraction': google('gemini-2.0-flash'),
-    'cv_health_scan': google('gemini-2.0-flash'),
-    'jd_parsing': google('gemini-2.0-flash'),
-    'outreach_gen': google('gemini-2.0-flash'),
-    'post_interview_remediation': google('gemini-2.0-flash'),
+    'cv_extraction': google('gemini-2.5-flash'),
+    'cv_health_scan': google('gemini-2.5-flash'),
+    'jd_parsing': google('gemini-2.5-flash'),
+    'outreach_gen': google('gemini-2.5-flash'),
+    'post_interview_remediation': google('gemini-2.5-flash'),
 } as const;
 
 export type PipelineId = keyof typeof MODELS;

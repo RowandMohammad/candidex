@@ -7,10 +7,13 @@ import { jsonResumeSchema, type ParsedJsonResume } from './schemas';
  * Uses Gemini Flash for cost-effective extraction.
  */
 export async function parseCvToJsonResume(rawText: string): Promise<ParsedJsonResume> {
+    const today = new Date().toISOString().split('T')[0];
     const { object } = await generateObject({
         model: getModel('cv_extraction'),
         schema: jsonResumeSchema,
         system: `You are an expert CV/resume parser. Extract ALL information from the provided resume text into structured JSON Resume format.
+
+IMPORTANT: Today's date is ${today}. Dates in 2024, 2025, and 2026 are valid and current — do NOT treat them as future dates.
 
 RULES:
 - Extract EVERY piece of information. Do not skip any section.

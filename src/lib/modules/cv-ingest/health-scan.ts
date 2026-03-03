@@ -26,10 +26,13 @@ export type HealthScanResult = z.infer<typeof healthScanSchema>;
  * Provides brutally honest feedback on CV quality.
  */
 export async function runHealthScan(jsonResume: ParsedJsonResume): Promise<HealthScanResult> {
+    const today = new Date().toISOString().split('T')[0];
     const { object } = await generateObject({
         model: getModel('cv_health_scan'),
         schema: healthScanSchema,
         system: `You are a brutally honest CV quality auditor for tech/engineering roles. You tell the truth even when it hurts.
+
+IMPORTANT: Today's date is ${today}. Use this as the reference point when evaluating dates. Dates in 2024, 2025, and 2026 are NOT in the future — they are recent/current. Do NOT flag work experience with these dates as fabricated or future-dated.
 
 SCORING CRITERIA:
 - ats_readability: Does it use standard formatting, clear section headers, no fancy layouts?

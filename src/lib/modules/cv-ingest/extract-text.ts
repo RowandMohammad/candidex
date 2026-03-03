@@ -12,9 +12,10 @@ export async function extractTextFromFile(
 
     switch (ext) {
         case 'pdf': {
-            // pdf-parse v1.x — lightweight, no canvas dependency
+            // pdf-parse v1.x has a bug where require() tries to load a test fixture.
+            // Import from the lib directly to skip the test fixture loader.
             // eslint-disable-next-line @typescript-eslint/no-require-imports
-            const pdfParse = require('pdf-parse');
+            const pdfParse = require('pdf-parse/lib/pdf-parse.js');
             const result = await pdfParse(buffer);
             return result.text.trim();
         }
