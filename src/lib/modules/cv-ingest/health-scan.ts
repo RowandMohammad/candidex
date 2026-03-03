@@ -24,15 +24,19 @@ export type HealthScanResult = z.infer<typeof healthScanSchema>;
 /**
  * Run a health scan on a parsed JSON Resume.
  * Provides brutally honest feedback on CV quality.
+ * Uses temperature: 0 for deterministic, consistent scores.
  */
 export async function runHealthScan(jsonResume: ParsedJsonResume): Promise<HealthScanResult> {
     const today = new Date().toISOString().split('T')[0];
     const { object } = await generateObject({
         model: getModel('cv_health_scan'),
         schema: healthScanSchema,
+        temperature: 0,
         system: `You are a brutally honest CV quality auditor for tech/engineering roles. You tell the truth even when it hurts.
 
-IMPORTANT: Today's date is ${today}. Use this as the reference point when evaluating dates. Dates in 2024, 2025, and 2026 are NOT in the future — they are recent/current. Do NOT flag work experience with these dates as fabricated or future-dated.
+IMPORTANT CONTEXT:
+- Today's date is ${today}. Use this as the reference point when evaluating dates. Dates in 2024, 2025, and 2026 are NOT in the future — they are recent/current. Do NOT flag work experience with these dates as fabricated or future-dated.
+- This CV was parsed from a PDF/DOCX file via text extraction. Embedded hyperlinks (such as LinkedIn/GitHub URLs behind icon text or clickable labels) are NOT extractable as raw text. If you see text labels like "LinkedIn", "Github", or a personal website domain name, treat that as evidence that the link EXISTS on the original CV, even if the full URL is not visible in the extracted data. Do NOT flag these as "missing" or "empty."
 
 SCORING CRITERIA:
 - ats_readability: Does it use standard formatting, clear section headers, no fancy layouts?

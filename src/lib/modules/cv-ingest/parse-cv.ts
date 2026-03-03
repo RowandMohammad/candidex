@@ -5,15 +5,19 @@ import { jsonResumeSchema, type ParsedJsonResume } from './schemas';
 /**
  * Parse raw CV text into structured JSON Resume using AI.
  * Uses Gemini Flash for cost-effective extraction.
+ * Uses temperature: 0 for deterministic, consistent parsing.
  */
 export async function parseCvToJsonResume(rawText: string): Promise<ParsedJsonResume> {
     const today = new Date().toISOString().split('T')[0];
     const { object } = await generateObject({
         model: getModel('cv_extraction'),
         schema: jsonResumeSchema,
+        temperature: 0,
         system: `You are an expert CV/resume parser. Extract ALL information from the provided resume text into structured JSON Resume format.
 
-IMPORTANT: Today's date is ${today}. Dates in 2024, 2025, and 2026 are valid and current — do NOT treat them as future dates.
+IMPORTANT CONTEXT:
+- Today's date is ${today}. Dates in 2024, 2025, and 2026 are valid and current — do NOT treat them as future dates.
+- This text was extracted from a PDF/DOCX file. Embedded hyperlinks (URLs behind clickable text/icons) are NOT captured by text extraction. If you see text labels like "LinkedIn", "Github", or a personal website domain name, record them as profile entries even if the full URL is not visible. Use the label as the network name and infer a likely URL if possible (e.g., "LinkedIn" → network: "LinkedIn").
 
 RULES:
 - Extract EVERY piece of information. Do not skip any section.
