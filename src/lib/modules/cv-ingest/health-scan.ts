@@ -76,8 +76,17 @@ BRUTAL SUMMARY:
     });
 
     // 3. Merge deterministic scores + LLM feedback
+    // Apply penalties based on weaknesses so placeholder text / unprofessional content drops the score
+    let { overall_score } = scores;
+    const criticalCount = feedback.weaknesses.filter(w => w.severity === 'critical').length;
+    const warningCount = feedback.weaknesses.filter(w => w.severity === 'warning').length;
+
+    // Deduct 15 for critical, 5 for warning
+    const penalty = (criticalCount * 15) + (warningCount * 5);
+    overall_score = Math.max(0, overall_score - penalty);
+
     return {
-        overall_score: scores.overall_score,
+        overall_score,
         ats_readability: scores.ats_readability,
         keyword_density: scores.keyword_density,
         signal_to_noise: scores.signal_to_noise,
