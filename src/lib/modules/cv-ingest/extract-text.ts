@@ -12,6 +12,7 @@ export async function extractTextFromFile(
 
     switch (ext) {
         case 'pdf': {
+            // pdf-parse v1.x — lightweight, no canvas dependency
             // eslint-disable-next-line @typescript-eslint/no-require-imports
             const pdfParse = require('pdf-parse');
             const result = await pdfParse(buffer);
