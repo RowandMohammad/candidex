@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -26,7 +26,7 @@ export function CvEditor({ cvId, initialData }: CvEditorProps) {
     const [dirty, setDirty] = useState(false);
     const [mode, setMode] = useState<'edit' | 'preview'>('edit');
     const savedRef = useRef<string>(JSON.stringify(initialData));
-    const supabase = createClient();
+    const router = useRouter();
 
     // Track dirty state
     const markDirty = useCallback(() => setDirty(true), []);
@@ -39,19 +39,29 @@ export function CvEditor({ cvId, initialData }: CvEditorProps) {
 
     async function handleSave() {
         setSaving(true);
-        const { error } = await supabase
-            .from('master_cvs')
-            .update({ json_resume: data })
-            .eq('id', cvId);
+        try {
+            const res = await fetch(`/api/v1/master-cvs/${cvId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ json_resume: data }),
+            });
 
-        if (error) {
-            toast.error('Failed to save changes');
-        } else {
-            toast.success('CV saved');
+            if (!res.ok) throw new Error('Failed to save');
+
+            const result = await res.json();
+
+            toast.success(`CV saved. New Score: ${result.score}/100`);
             savedRef.current = JSON.stringify(data);
             setDirty(false);
+
+            // Refresh parent page to get updated score and diagnostics from server
+            router.refresh();
+        } catch (error) {
+            console.error('Save error:', error);
+            toast.error('Failed to save changes');
+        } finally {
+            setSaving(false);
         }
-        setSaving(false);
     }
 
     // ── Update helpers ──────────────────────────────────────
@@ -154,6 +164,20 @@ export function CvEditor({ cvId, initialData }: CvEditorProps) {
             certs[index] = { ...certs[index], [field]: value };
             return { ...prev, certifications: certs };
         });
+    }
+
+    function addCertification() {
+        setData((prev: any) => ({
+            ...prev,
+            certifications: [...(prev.certifications || []), { name: '', issuer: '', date: '' }],
+        }));
+    }
+
+    function removeCertification(index: number) {
+        setData((prev: any) => ({
+            ...prev,
+            certifications: (prev.certifications || []).filter((_: any, i: number) => i !== index),
+        }));
     }
 
     // ── Render ───────────────────────────────────────────────
@@ -505,10 +529,22 @@ export function CvEditor({ cvId, initialData }: CvEditorProps) {
             {/* Certifications */}
             <Card className="border-zinc-800 bg-zinc-900">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-white">
-                        <Award className="h-5 w-5" />
-                        Certifications ({data.certifications?.length || 0})
-                    </CardTitle>
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2 text-white">
+                            <Award className="h-5 w-5" />
+                            Certifications ({data.certifications?.length || 0})
+                        </CardTitle>
+                        {isEditing && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={addCertification}
+                                className="text-emerald-400 hover:text-emerald-300"
+                            >
+                                <Plus className="mr-1 h-4 w-4" /> Add Cert
+                            </Button>
+                        )}
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                     {(data.certifications || []).length === 0 && (
@@ -517,19 +553,29 @@ export function CvEditor({ cvId, initialData }: CvEditorProps) {
                     {(data.certifications || []).map((cert: any, i: number) => (
                         <div key={i} className="rounded-lg border border-zinc-800 p-3">
                             {isEditing ? (
-                                <div className="grid gap-3 md:grid-cols-3">
-                                    <div>
-                                        <label className="text-xs text-zinc-500">Name</label>
-                                        <Input value={cert.name || ''} onChange={e => updateCertification(i, 'name', e.target.value)} className="border-zinc-700 bg-zinc-800 text-white" />
+                                <div className="flex items-start justify-between">
+                                    <div className="grid flex-1 gap-3 md:grid-cols-3">
+                                        <div>
+                                            <label className="text-xs text-zinc-500">Name</label>
+                                            <Input value={cert.name || ''} onChange={e => updateCertification(i, 'name', e.target.value)} className="border-zinc-700 bg-zinc-800 text-white" />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-zinc-500">Issuer</label>
+                                            <Input value={cert.issuer || ''} onChange={e => updateCertification(i, 'issuer', e.target.value)} className="border-zinc-700 bg-zinc-800 text-white" />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-zinc-500">Date</label>
+                                            <Input value={cert.date || ''} onChange={e => updateCertification(i, 'date', e.target.value)} className="border-zinc-700 bg-zinc-800 text-white" />
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="text-xs text-zinc-500">Issuer</label>
-                                        <Input value={cert.issuer || ''} onChange={e => updateCertification(i, 'issuer', e.target.value)} className="border-zinc-700 bg-zinc-800 text-white" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-zinc-500">Date</label>
-                                        <Input value={cert.date || ''} onChange={e => updateCertification(i, 'date', e.target.value)} className="border-zinc-700 bg-zinc-800 text-white" />
-                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => removeCertification(i)}
+                                        className="ml-2 mt-5 shrink-0 text-zinc-500 hover:text-red-400"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
                                 </div>
                             ) : (
                                 <div className="text-sm text-zinc-300">
