@@ -77,7 +77,12 @@ export function CvPageClient({ masterCv }: CvPageClientProps) {
                 </TabsList>
 
                 <TabsContent value="editor" className="mt-4">
-                    <CvEditor cvId={masterCv.id} initialData={masterCv.json_resume} />
+                    {/* key forces React to remount CvEditor with fresh data when CV changes */}
+                    <CvEditor
+                        key={`${masterCv.id}-${masterCv.updated_at}`}
+                        cvId={masterCv.id}
+                        initialData={masterCv.json_resume}
+                    />
                 </TabsContent>
 
                 <TabsContent value="health" className="mt-4">

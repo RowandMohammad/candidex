@@ -2,53 +2,67 @@ import { generateObject } from 'ai';
 import { getModel } from '@/lib/ai/model-router';
 import { z } from 'zod';
 import type { ParsedJsonResume } from './schemas';
+import { computeDeterministicScores } from './deterministic-scoring';
 
-const healthScanSchema = z.object({
-    overall_score: z.number().min(0).max(100).describe('Overall CV health score 0-100'),
-    ats_readability: z.number().min(0).max(100).describe('ATS readability score'),
-    keyword_density: z.number().min(0).max(100).describe('Keyword density score'),
-    signal_to_noise: z.number().min(0).max(100).describe('Signal to noise ratio score'),
+/**
+ * Schema for LLM qualitative feedback only.
+ * Numerical scores are computed deterministically — see deterministic-scoring.ts
+ */
+const qualitativeFeedbackSchema = z.object({
     weaknesses: z.array(z.object({
         section: z.string(),
         issue: z.string(),
         severity: z.enum(['critical', 'warning', 'info']),
         suggestion: z.string(),
     })).describe('Identified weaknesses'),
-    missing_sections: z.array(z.string()).describe('Sections that are missing from the CV'),
     strengths: z.array(z.string()).describe('Notable strengths'),
     brutal_summary: z.string().describe('A brutally honest 2-3 sentence summary of this CV\'s quality'),
 });
 
-export type HealthScanResult = z.infer<typeof healthScanSchema>;
+export interface HealthScanResult {
+    overall_score: number;
+    ats_readability: number;
+    keyword_density: number;
+    signal_to_noise: number;
+    weaknesses: Array<{
+        section: string;
+        issue: string;
+        severity: 'critical' | 'warning' | 'info';
+        suggestion: string;
+    }>;
+    missing_sections: string[];
+    strengths: string[];
+    brutal_summary: string;
+}
 
 /**
  * Run a health scan on a parsed JSON Resume.
- * Provides brutally honest feedback on CV quality.
- * Uses temperature: 0 for deterministic, consistent scores.
+ * 
+ * SCORING: Deterministic, rule-based (same CV = same score, always).
+ * FEEDBACK: LLM-powered qualitative analysis (weaknesses, strengths, summary).
  */
 export async function runHealthScan(jsonResume: ParsedJsonResume): Promise<HealthScanResult> {
+    // 1. Compute deterministic numerical scores
+    const scores = computeDeterministicScores(jsonResume);
+
+    // 2. Get qualitative feedback from LLM
     const today = new Date().toISOString().split('T')[0];
-    const { object } = await generateObject({
+    const { object: feedback } = await generateObject({
         model: getModel('cv_health_scan'),
-        schema: healthScanSchema,
+        schema: qualitativeFeedbackSchema,
         temperature: 0,
         system: `You are a brutally honest CV quality auditor for tech/engineering roles. You tell the truth even when it hurts.
 
 IMPORTANT CONTEXT:
-- Today's date is ${today}. Use this as the reference point when evaluating dates. Dates in 2024, 2025, and 2026 are NOT in the future — they are recent/current. Do NOT flag work experience with these dates as fabricated or future-dated.
-- This CV was parsed from a PDF/DOCX file via text extraction. Embedded hyperlinks (such as LinkedIn/GitHub URLs behind icon text or clickable labels) are NOT extractable as raw text. If you see text labels like "LinkedIn", "Github", or a personal website domain name, treat that as evidence that the link EXISTS on the original CV, even if the full URL is not visible in the extracted data. Do NOT flag these as "missing" or "empty."
-
-SCORING CRITERIA:
-- ats_readability: Does it use standard formatting, clear section headers, no fancy layouts?
-- keyword_density: Does it have relevant technical keywords for the person's apparent role?
-- signal_to_noise: Does every bullet demonstrate impact, or is it padded with responsibilities?
+- Today's date is ${today}. Dates in 2024, 2025, and 2026 are NOT in the future — they are recent/current.
+- This CV was parsed from a PDF/DOCX. Embedded hyperlinks (URLs behind clickable text/icons) are NOT captured by text extraction. If you see labels like "LinkedIn", "Github", or a domain name, treat them as evidence the link EXISTS. Do NOT flag them as missing.
+- The numerical scores are already computed separately. Focus ONLY on qualitative feedback: specific weaknesses, strengths, and a summary.
 
 WEAKNESS DETECTION:
 - Flag vague bullets that describe responsibilities instead of achievements ("Worked on..." → critical)
 - Flag missing quantification (no metrics, no numbers → warning)
-- Flag gaps in experience (unexplained timeline gaps → warning)
-- Flag missing sections (no skills section, no summary → warning)
-- Flag very short or very long CVs (< 200 words or > 2000 words → info)
+- Flag unexplained timeline gaps → warning
+- Flag missing critical sections (no skills, no summary → warning)
 
 SEVERITY:
 - critical: Will get the CV auto-rejected by ATS or screener
@@ -57,9 +71,19 @@ SEVERITY:
 
 BRUTAL SUMMARY:
 - Be direct. No cheerleading. If the CV is mediocre, say so.
-- Example: "This CV reads like a job description copy-paste. Zero quantified achievements across 3 roles. Any screener will skip this in 6 seconds."`,
-        prompt: `Analyze this CV and provide a health scan:\n\n${JSON.stringify(jsonResume, null, 2)}`,
+- Do NOT mention or estimate numerical scores — those are computed separately.`,
+        prompt: `Provide qualitative feedback on this CV:\n\n${JSON.stringify(jsonResume, null, 2)}`,
     });
 
-    return object;
+    // 3. Merge deterministic scores + LLM feedback
+    return {
+        overall_score: scores.overall_score,
+        ats_readability: scores.ats_readability,
+        keyword_density: scores.keyword_density,
+        signal_to_noise: scores.signal_to_noise,
+        missing_sections: scores.missing_sections,
+        weaknesses: feedback.weaknesses,
+        strengths: feedback.strengths,
+        brutal_summary: feedback.brutal_summary,
+    };
 }
